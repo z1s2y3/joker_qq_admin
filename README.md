@@ -1,6 +1,6 @@
 # joker_qq_admin
 
-独立的 QQ 官方机器人项目，运行在 Linux 云服务器上，不修改现有 `astrbot_plugin_joker`、NapCat 或 Linux 网页界面。
+独立的 QQ 官方机器人项目，运行在 Linux 云服务器 `/www/wwwroot/joker_qq_admin`，不修改现有 `astrbot_plugin_joker` 或 NapCat。
 
 ## 当前范围
 

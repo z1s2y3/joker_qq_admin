@@ -5,9 +5,9 @@
 ## 手动部署
 
 ```bash
-sudo JOKER_QQ_ADMIN_DIR=/opt/joker_qq_admin bash deploy/install.sh
+sudo JOKER_QQ_ADMIN_DIR=/www/wwwroot/joker_qq_admin bash deploy/install.sh
 sudo nano /etc/joker_qq_admin/joker_qq_admin.env
-sudo JOKER_QQ_ADMIN_DIR=/opt/joker_qq_admin bash deploy/install.sh
+sudo JOKER_QQ_ADMIN_DIR=/www/wwwroot/joker_qq_admin bash deploy/install.sh
 sudo systemctl restart joker-qq-admin
 sudo journalctl -u joker-qq-admin -f
 ```

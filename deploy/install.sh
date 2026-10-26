@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="${JOKER_QQ_ADMIN_DIR:-/opt/joker_qq_admin}"
+APP_DIR="${JOKER_QQ_ADMIN_DIR:-/www/wwwroot/joker_qq_admin}"
 SERVICE_USER="${JOKER_QQ_ADMIN_USER:-joker-qq-admin}"
 SERVICE_NAME="joker-qq-admin"
 SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -34,7 +34,7 @@ for item in README.md .env.example .gitignore requirements.txt run.py api.py app
 done
 find "$APP_DIR" -type d -name __pycache__ -prune -exec rm -rf {} +
 find "$APP_DIR" -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete
-chown -R "$SERVICE_USER:$SERVICE_USER" "$APP_DIR"
+find "$APP_DIR" -mindepth 1 ! -path "$APP_DIR/.user.ini" -exec chown "$SERVICE_USER:$SERVICE_USER" {} +
 
 python3 -m venv "$APP_DIR/.venv"
 "$APP_DIR/.venv/bin/python" -m pip install --upgrade pip

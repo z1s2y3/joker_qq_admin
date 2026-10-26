@@ -34,5 +34,5 @@ foreach ($item in $items) {
     & scp @scpOptions -r $source "$target`:$RemotePackage/"
 }
 
-& ssh @sshOptions $target "cd '$RemotePackage' && JOKER_QQ_ADMIN_DIR=/opt/joker_qq_admin bash deploy/install.sh"
+& ssh @sshOptions $target "cd '$RemotePackage' && JOKER_QQ_ADMIN_DIR=/www/wwwroot/joker_qq_admin bash deploy/install.sh"
 Write-Host "程序已上传并执行 Linux 安装脚本。请在服务器配置 /etc/joker_qq_admin/joker_qq_admin.env 后再次执行安装脚本。"
