@@ -1,0 +1,54 @@
+# joker_qq_admin
+
+独立的 QQ 官方机器人项目，运行在 Linux 云服务器上，不修改现有 `astrbot_plugin_joker`、NapCat 或 Linux 网页界面。
+
+## 当前范围
+
+- 使用 QQ 开放平台 AppID、AppSecret 获取 Access Token。
+- 连接官方 WebSocket Gateway，接收群消息和 C2C 消息事件。
+- 通过官方 HTTP API 发送群消息和 C2C 消息。
+- 支持 `/ping`、`/官方机器人状态`、`/官方机器人帮助` 基础指令。
+- 支持 SCUM 服务器绑定、在线查询和 `/查询2 关键词` 搜索。
+- 支持签到、积分排行、自动回复、抽奖、骰子、猜拳、随机选择和消息统计。
+- 支持记录官方群 `group_openid` 与 Linux 网页数字群号的映射。
+- 每个后续功能放在 `src/joker_qq_admin/features/` 下的独立目录。
+- 数据库只在 Linux 运行目录首次创建，不导入 Windows 端群组和运行数据。
+- 音乐媒体、图片转换、禁言、踢出、撤回、称号和点赞不会伪装成功；没有对应官方能力时会明确提示未执行。
+
+## 配置
+
+复制 `.env.example` 的变量到系统环境变量。不要把真实 Token、AppSecret 或本地配置提交到 Git。
+
+至少需要配置：
+
+```text
+QQBOT_APP_ID=你的AppID
+QQBOT_APP_SECRET=你的AppSecret
+```
+
+群消息需要在 QQ 开放平台启用对应事件权限，并将机器人发布到可测试的群。企业主体和个人主体可用场景、事件权限及消息限制以官方控制台为准。
+
+## 启动
+
+在本目录执行：
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -e .
+python run.py
+```
+
+也可以使用：
+
+```powershell
+python -m joker_qq_admin
+```
+
+## 官方文档
+
+- https://github.com/tencent-connect/bot-docs
+- https://q.qq.com/#/
+
+功能迁移清单见 `src/joker_qq_admin/features/README.md`。
+

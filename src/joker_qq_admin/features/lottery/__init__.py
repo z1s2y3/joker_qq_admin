@@ -1,0 +1,2 @@
+"""Group lottery features."""
+

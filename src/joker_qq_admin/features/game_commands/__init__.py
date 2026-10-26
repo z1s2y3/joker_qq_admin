@@ -1,0 +1,2 @@
+"""SCUM game command bridge."""
+
