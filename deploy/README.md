@@ -6,11 +6,11 @@
 
 ```bash
 sudo JOKER_QQ_ADMIN_DIR=/www/wwwroot/joker_qq_admin bash deploy/install.sh
-sudo nano /etc/joker_qq_admin/joker_qq_admin.env
-sudo JOKER_QQ_ADMIN_DIR=/www/wwwroot/joker_qq_admin bash deploy/install.sh
 sudo systemctl restart joker-qq-admin
 sudo journalctl -u joker-qq-admin -f
 ```
+
+首次部署仍需把 AppID 和 AppSecret 写入 `/etc/joker_qq_admin/joker_qq_admin.env`，并设置网页控制台的监听地址和访问令牌。打开网页控制台后，后续配置统一在“设置”页面修改，保存会自动重载机器人。
 
 Windows 可使用上传脚本传输正式程序文件，不会上传本地数据或 `.env`：
 
