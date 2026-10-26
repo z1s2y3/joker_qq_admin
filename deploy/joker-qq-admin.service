@@ -9,6 +9,7 @@ User=__SERVICE_USER__
 Group=__SERVICE_USER__
 WorkingDirectory=__APP_DIR__
 EnvironmentFile=/etc/joker_qq_admin/joker_qq_admin.env
+Environment=PYTHONDONTWRITEBYTECODE=1
 ExecStart=__APP_DIR__/.venv/bin/python __APP_DIR__/run.py
 Restart=always
 RestartSec=5
