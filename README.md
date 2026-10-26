@@ -39,6 +39,8 @@ pip install -e .
 python run.py
 ```
 
+运行环境要求 Python 3.10 或更高版本。
+
 也可以使用：
 
 ```powershell

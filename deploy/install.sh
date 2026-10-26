@@ -12,12 +12,12 @@ if [[ "$(id -u)" -ne 0 ]]; then
 fi
 
 command -v python3 >/dev/null || {
-  echo "未找到 python3，请先安装 Python 3.11 或更高版本。" >&2
+  echo "未找到 python3，请先安装 Python 3.10 或更高版本。" >&2
   exit 1
 }
 
-python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)' || {
-  echo "python3 版本低于 3.11，请先升级。" >&2
+python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' || {
+  echo "python3 版本低于 3.10，请先升级。" >&2
   exit 1
 }
 

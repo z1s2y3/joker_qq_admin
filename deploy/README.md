@@ -18,7 +18,7 @@ Windows 可使用上传脚本传输正式程序文件，不会上传本地数据
 .\deploy\upload.ps1 -HostName 服务器地址 -UserName root -KeyPath C:\密钥\server_ed25519
 ```
 
-脚本执行前需要先在云服务器准备 Python 3.11+、`sudo`、`systemd` 和 OpenSSH 服务。当前工作区没有云服务器地址和 SSH 私钥，因此不会在本机直接发起上传。
+脚本执行前需要先在云服务器准备 Python 3.10+、`sudo`、`systemd` 和 OpenSSH 服务。
 
 环境文件至少包含：
 
