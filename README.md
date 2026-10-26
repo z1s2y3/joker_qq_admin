@@ -11,7 +11,7 @@
 - 支持 SCUM 服务器绑定、在线查询和 `/查询2 关键词` 搜索。
 - 支持签到、积分排行、自动回复、抽奖、骰子、猜拳、随机选择和消息统计。
 - 支持记录官方群 `group_openid` 与 Linux 网页数字群号的映射。
-- 每个后续功能放在 `src/joker_qq_admin/features/` 下的独立目录。
+- 每个功能放在 `features/` 下的独立目录，项目只有一个正式运行目录。
 - 数据库只在 Linux 运行目录首次创建，不导入 Windows 端群组和运行数据。
 - 音乐媒体、图片转换、禁言、踢出、撤回、称号和点赞不会伪装成功；没有对应官方能力时会明确提示未执行。
 
@@ -30,27 +30,22 @@ QQBOT_APP_SECRET=你的AppSecret
 
 ## 启动
 
-在本目录执行：
+在本项目目录执行：
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -e .
 python run.py
 ```
 
 运行环境要求 Python 3.10 或更高版本。
-
-也可以使用：
-
-```powershell
-python -m joker_qq_admin
-```
 
 ## 官方文档
 
 - https://github.com/tencent-connect/bot-docs
 - https://q.qq.com/#/
 
-功能迁移清单见 `src/joker_qq_admin/features/README.md`。
+功能迁移清单见 `features/README.md`。
+
+本项目使用 QQ 官方机器人 Gateway 和 HTTP API，不使用 NapCat、OneBot 或 AstrBot 插件运行入口。
 

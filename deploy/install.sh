@@ -25,7 +25,7 @@ id "$SERVICE_USER" >/dev/null 2>&1 || useradd --system --home-dir "$APP_DIR" --s
 install -d -o "$SERVICE_USER" -g "$SERVICE_USER" "$APP_DIR" /etc/joker_qq_admin
 install -d -o "$SERVICE_USER" -g "$SERVICE_USER" /var/lib/joker_qq_admin
 # 只复制程序和部署配置，不复制旧数据、数据库、浏览器缓存或 Git 元数据。
-for item in README.md .env.example .gitignore requirements.txt pyproject.toml run.py src deploy; do
+for item in README.md .env.example .gitignore requirements.txt run.py api.py app.py config.py gateway.py storage.py features deploy; do
   if [[ -d "$SOURCE_DIR/$item" ]]; then
     cp -R "$SOURCE_DIR/$item" "$APP_DIR/"
   else
@@ -38,7 +38,7 @@ chown -R "$SERVICE_USER:$SERVICE_USER" "$APP_DIR"
 
 python3 -m venv "$APP_DIR/.venv"
 "$APP_DIR/.venv/bin/python" -m pip install --upgrade pip
-"$APP_DIR/.venv/bin/python" -m pip install -e "$APP_DIR"
+"$APP_DIR/.venv/bin/python" -m pip install -r "$APP_DIR/requirements.txt"
 
 if [[ ! -f /etc/joker_qq_admin/joker_qq_admin.env ]]; then
   install -o "$SERVICE_USER" -g "$SERVICE_USER" -m 600 /dev/null /etc/joker_qq_admin/joker_qq_admin.env

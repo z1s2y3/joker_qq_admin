@@ -1,6 +1,6 @@
 import asyncio
 
-from joker_qq_admin.app import run
+from app import run
 
 
 if __name__ == "__main__":
