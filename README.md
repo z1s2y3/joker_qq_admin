@@ -5,7 +5,7 @@
 ## 当前范围
 
 - 使用 QQ 开放平台 AppID、AppSecret 获取 Access Token。
-- 连接官方 WebSocket Gateway，接收群消息和 C2C 消息事件。
+- 支持官方 WebSocket Gateway 和 Webhook，接收群消息和 C2C 消息事件。
 - 通过官方 HTTP API 发送群消息和 C2C 消息。
 - 支持 `/ping`、`/官方机器人状态`、`/官方机器人帮助` 基础指令。
 - 支持 SCUM 服务器绑定、在线查询和 `/查询2 关键词` 搜索。
@@ -61,4 +61,6 @@ JOKER_DASHBOARD_TOKEN=请设置一个独立的访问令牌
 功能迁移清单见 `features/README.md`。
 
 本项目使用 QQ 官方机器人 Gateway 和 HTTP API，不使用 NapCat、OneBot 或 AstrBot 插件运行入口。
+
+QQ 开放平台选择 Webhook 时，回调地址填写部署域名根地址，例如 `https://bbt.yooyun.top`。项目会自动处理回调签名校验、地址验证、事件确认和消息分发；网页控制台仍通过浏览器访问同一个地址。
 

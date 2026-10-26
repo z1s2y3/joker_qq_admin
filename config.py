@@ -85,6 +85,7 @@ class QQBotConfig:
     api_base_url: str = DEFAULT_API_BASE_URL
     token_url: str = DEFAULT_TOKEN_URL
     gateway_url: str = ""
+    transport: str = "websocket"
     intents: int = DEFAULT_INTENTS
     request_timeout: float = DEFAULT_REQUEST_TIMEOUT
     reconnect_min: float = 1.0
@@ -113,6 +114,9 @@ class QQBotConfig:
 
         dashboard_bind = _env("JOKER_DASHBOARD_BIND", "127.0.0.1")
         dashboard_token = _env("JOKER_DASHBOARD_TOKEN")
+        transport = _env("QQBOT_TRANSPORT", "webhook").lower()
+        if transport not in {"websocket", "webhook"}:
+            raise ConfigError("QQBOT_TRANSPORT must be websocket or webhook")
         if dashboard_bind not in {"127.0.0.1", "localhost", "::1"} and not dashboard_token:
             raise ConfigError("JOKER_DASHBOARD_TOKEN is required when dashboard is not local-only")
 
@@ -122,6 +126,7 @@ class QQBotConfig:
             api_base_url=_env("QQBOT_API_BASE", DEFAULT_API_BASE_URL).rstrip("/"),
             token_url=_env("QQBOT_TOKEN_URL", DEFAULT_TOKEN_URL),
             gateway_url=_env("QQBOT_GATEWAY_URL"),
+            transport=transport,
             intents=_int_env("QQBOT_INTENTS", DEFAULT_INTENTS),
             request_timeout=_float_env("QQBOT_REQUEST_TIMEOUT", DEFAULT_REQUEST_TIMEOUT),
             reconnect_min=reconnect_min,

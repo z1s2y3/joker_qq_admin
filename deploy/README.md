@@ -37,6 +37,8 @@ JOKER_DASHBOARD_PORT=8080
 JOKER_DASHBOARD_TOKEN=
 ```
 
+QQ 开放平台选择 Webhook 时，回调地址填写部署域名根地址，例如 `https://bbt.yooyun.top`。项目会自动处理 QQ 的回调验证和事件确认；选择 WebSocket 时仍可使用原有长连接方式。
+
 环境文件权限应保持为 `600`，不能放进 Git 或部署压缩包。`JOKER_QQ_DATA_DIR` 指向 Linux 云服务器上的运行数据目录；该目录由官方机器人和 Linux 端共同维护时，必须保证服务用户有读写权限。
 
 首次启动会在 `JOKER_QQ_DATA_DIR` 创建空的 SQLite 数据库，不会从 Windows 端导入旧数据。

@@ -137,12 +137,17 @@ class OfficialQQBotApp:
         self.api = QQBotAPI(config)
         self.router = CommandRouter(self.api, config, self.status)
         self.gateway = QQBotGateway(self.api, config, self._on_event, self._on_gateway_status)
-        self.dashboard = DashboardServer(config, self.router.store, self.status)
+        self.dashboard = DashboardServer(config, self.router.store, self.status, self._on_event)
 
     async def run(self) -> None:
         try:
             await self.dashboard.start()
-            await self.gateway.run_forever()
+            if self.gateway.config.transport == "webhook":
+                self.status["gateway_state"] = "webhook_listening"
+                logger.info("official QQ webhook listening")
+                await asyncio.Event().wait()
+            else:
+                await self.gateway.run_forever()
         finally:
             await self.dashboard.stop()
             self.router.close()
