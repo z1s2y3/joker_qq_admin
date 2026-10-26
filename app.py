@@ -3,10 +3,12 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 from api import QQBotAPI
 from config import QQBotConfig
+from dashboard import DashboardServer, initial_status
 from features.auto_reply.handler import AutoReplyHandler
 from features.blacklist.handler import BlacklistHandler
 from features.basic_commands import BasicCommandHandler
@@ -43,8 +45,9 @@ class C2CMessage:
 
 
 class CommandRouter:
-    def __init__(self, api: QQBotAPI, config: QQBotConfig) -> None:
+    def __init__(self, api: QQBotAPI, config: QQBotConfig, status: dict[str, Any]) -> None:
         self.api = api
+        self.status = status
         self.store = SQLiteStore(config.data_dir / "joker_qq_admin.sqlite3")
         self.handlers = (
             BasicCommandHandler(),
@@ -91,6 +94,7 @@ class CommandRouter:
             try:
                 response = await handler.handle(context)
             except Exception:
+                self.status["last_error"] = f"{type(handler).__name__} 执行失败"
                 logger.exception(
                     "feature handler failed kind=%s scope=%s user=%s handler=%s",
                     context.kind,
@@ -111,12 +115,15 @@ class CommandRouter:
                         context.user_id, response, msg_id=context.message_id
                     )
             except Exception:
+                self.status["last_error"] = "官方 QQ 回复失败"
                 logger.exception(
                     "official QQ reply failed kind=%s scope=%s message=%s",
                     context.kind,
                     context.scope_id,
                     context.message_id,
                 )
+            else:
+                self.status["reply_count"] += 1
             return
 
     def close(self) -> None:
@@ -126,18 +133,30 @@ class CommandRouter:
 
 class OfficialQQBotApp:
     def __init__(self, config: QQBotConfig) -> None:
+        self.status = initial_status()
         self.api = QQBotAPI(config)
-        self.router = CommandRouter(self.api, config)
-        self.gateway = QQBotGateway(self.api, config, self._on_event)
+        self.router = CommandRouter(self.api, config, self.status)
+        self.gateway = QQBotGateway(self.api, config, self._on_event, self._on_gateway_status)
+        self.dashboard = DashboardServer(config, self.router.store, self.status)
 
     async def run(self) -> None:
         try:
+            await self.dashboard.start()
             await self.gateway.run_forever()
         finally:
+            await self.dashboard.stop()
             self.router.close()
             await self.api.close()
 
+    async def _on_gateway_status(self, state: str, detail: str) -> None:
+        self.status["gateway_state"] = state
+        self.status["last_error"] = detail if state == "error" else ""
+        logger.info("official QQ gateway state=%s%s", state, f" detail={detail}" if detail else "")
+
     async def _on_event(self, event_type: str, data: dict[str, Any]) -> None:
+        self.status["event_count"] += 1
+        self.status["last_event"] = event_type
+        self.status["last_event_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
         if event_type in {"GROUP_AT_MESSAGE_CREATE", "GROUP_MESSAGE_CREATE", "GROUP_MSG_RECEIVE"}:
             author = data.get("author")
             if not isinstance(author, dict):

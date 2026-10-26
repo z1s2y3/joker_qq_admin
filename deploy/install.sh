@@ -25,7 +25,7 @@ id "$SERVICE_USER" >/dev/null 2>&1 || useradd --system --home-dir "$APP_DIR" --s
 install -d -o "$SERVICE_USER" -g "$SERVICE_USER" "$APP_DIR" /etc/joker_qq_admin
 install -d -o "$SERVICE_USER" -g "$SERVICE_USER" /var/lib/joker_qq_admin
 # 只复制程序和部署配置，不复制旧数据、数据库、浏览器缓存或 Git 元数据。
-for item in README.md .env.example .gitignore requirements.txt run.py api.py app.py config.py gateway.py storage.py features deploy; do
+for item in README.md .env.example .gitignore requirements.txt run.py api.py app.py config.py dashboard.py gateway.py storage.py features deploy; do
   if [[ -d "$SOURCE_DIR/$item" ]]; then
     cp -R "$SOURCE_DIR/$item" "$APP_DIR/"
   else

@@ -12,13 +12,21 @@ from config import QQBotConfig
 
 logger = logging.getLogger(__name__)
 EventHandler = Callable[[str, dict[str, Any]], Awaitable[None]]
+StatusHandler = Callable[[str, str], Awaitable[None]]
 
 
 class QQBotGateway:
-    def __init__(self, api: QQBotAPI, config: QQBotConfig, on_event: EventHandler) -> None:
+    def __init__(
+        self,
+        api: QQBotAPI,
+        config: QQBotConfig,
+        on_event: EventHandler,
+        on_status: StatusHandler | None = None,
+    ) -> None:
         self.api = api
         self.config = config
         self.on_event = on_event
+        self.on_status = on_status
         self._sequence: int | None = None
 
     async def run_forever(self) -> None:
@@ -29,9 +37,11 @@ class QQBotGateway:
                 try:
                     await self._run_once(session)
                     delay = self.config.reconnect_min
+                    await self._set_status("disconnected", "Gateway connection closed")
                 except asyncio.CancelledError:
                     raise
-                except Exception:
+                except Exception as exc:
+                    await self._set_status("error", str(exc))
                     logger.exception("official QQ bot gateway disconnected")
                 await asyncio.sleep(delay)
                 delay = min(self.config.reconnect_max, delay * 2)
@@ -44,6 +54,7 @@ class QQBotGateway:
                 raise RuntimeError(f"gateway did not send hello: {hello}")
             heartbeat_interval = max(1.0, float(hello["d"]["heartbeat_interval"]) / 1000)
             await websocket.send_json(self._identify_payload())
+            await self._set_status("connected", "")
             heartbeat = asyncio.create_task(self._heartbeat(websocket, heartbeat_interval))
             try:
                 async for message in websocket:
@@ -67,7 +78,7 @@ class QQBotGateway:
                 "intents": self.config.intents,
                 "shard": [0, 1],
                 "properties": {
-                    "$os": "windows",
+                    "$os": "linux",
                     "$browser": "joker_qq_admin",
                     "$device": "joker_qq_admin",
                 },
@@ -102,4 +113,8 @@ class QQBotGateway:
             await websocket.close()
         elif op == 9:
             raise RuntimeError("official QQ bot gateway rejected the session")
+
+    async def _set_status(self, state: str, detail: str) -> None:
+        if self.on_status is not None:
+            await self.on_status(state, detail)
 

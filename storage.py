@@ -302,6 +302,53 @@ class SQLiteStore:
             row = cursor.fetchone()
         return str(row[0]) if row else None
 
+    def list_scopes(self) -> list[dict[str, Any]]:
+        with self._lock:
+            scope_ids: set[str] = set()
+            for table, column in (
+                ("message_stats", "scope_id"),
+                ("settings", "scope_id"),
+                ("replies", "scope_id"),
+                ("server_bindings", "scope_id"),
+                ("official_group_bindings", "group_openid"),
+                ("lotteries", "scope_id"),
+                ("blacklist", "scope_id"),
+            ):
+                rows = self._connection.execute(
+                    f"SELECT DISTINCT {column} FROM {table} WHERE {column} <> ''"
+                ).fetchall()
+                scope_ids.update(str(row[0]) for row in rows)
+
+            result: list[dict[str, Any]] = []
+            for scope_id in sorted(scope_ids):
+                group_binding = self._connection.execute(
+                    "SELECT numeric_group_id FROM official_group_bindings WHERE group_openid=?",
+                    (scope_id,),
+                ).fetchone()
+                server_binding = self._connection.execute(
+                    "SELECT server_id FROM server_bindings WHERE scope_id=?",
+                    (scope_id,),
+                ).fetchone()
+                message_count = self._connection.execute(
+                    "SELECT COALESCE(SUM(messages), 0) FROM message_stats WHERE scope_id=?",
+                    (scope_id,),
+                ).fetchone()[0]
+                reply_count = self._connection.execute(
+                    "SELECT COUNT(*) FROM replies WHERE scope_id=?",
+                    (scope_id,),
+                ).fetchone()[0]
+                result.append(
+                    {
+                        "scope_id": scope_id,
+                        "numeric_group_id": str(group_binding[0]) if group_binding else "",
+                        "server_id": str(server_binding[0]) if server_binding else "",
+                        "message_count": int(message_count or 0),
+                        "reply_count": int(reply_count or 0),
+                        "auto_reply_enabled": self.get_setting(scope_id, "auto_reply_enabled", "1") == "1",
+                    }
+                )
+            return result
+
     def create_lottery(self, scope_id: str, title: str, winner_count: int) -> int:
         with self._lock:
             cursor = self._connection.execute(

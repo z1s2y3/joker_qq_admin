@@ -30,6 +30,11 @@ QQBOT_APP_SECRET=
 SCUM_RELAY_URL=https://ba.yooyun.top
 SCUM_RELAY_KEY=
 JOKER_QQ_DATA_DIR=/var/lib/joker_qq_admin
+
+# 网页控制台（需要远程访问时填写）
+JOKER_DASHBOARD_BIND=0.0.0.0
+JOKER_DASHBOARD_PORT=8080
+JOKER_DASHBOARD_TOKEN=
 ```
 
 环境文件权限应保持为 `600`，不能放进 Git 或部署压缩包。`JOKER_QQ_DATA_DIR` 指向 Linux 云服务器上的运行数据目录；该目录由官方机器人和 Linux 端共同维护时，必须保证服务用户有读写权限。

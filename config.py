@@ -56,6 +56,9 @@ class QQBotConfig:
     owner_openid: str = ""
     game_bridge_url: str = ""
     game_bridge_token: str = ""
+    dashboard_bind: str = "127.0.0.1"
+    dashboard_port: int = 8080
+    dashboard_token: str = ""
 
     @classmethod
     def from_env(cls) -> "QQBotConfig":
@@ -68,6 +71,11 @@ class QQBotConfig:
         reconnect_max = _float_env("QQBOT_RECONNECT_MAX", 30.0)
         if reconnect_min <= 0 or reconnect_max < reconnect_min:
             raise ConfigError("QQBOT_RECONNECT_MAX must be >= QQBOT_RECONNECT_MIN > 0")
+
+        dashboard_bind = _env("JOKER_DASHBOARD_BIND", "127.0.0.1")
+        dashboard_token = _env("JOKER_DASHBOARD_TOKEN")
+        if dashboard_bind not in {"127.0.0.1", "localhost", "::1"} and not dashboard_token:
+            raise ConfigError("JOKER_DASHBOARD_TOKEN is required when dashboard is not local-only")
 
         return cls(
             app_id=app_id,
@@ -85,5 +93,8 @@ class QQBotConfig:
             owner_openid=_env("QQBOT_OWNER_OPENID"),
             game_bridge_url=_env("JOKER_GAME_BRIDGE_URL").rstrip("/"),
             game_bridge_token=_env("JOKER_GAME_BRIDGE_TOKEN"),
+            dashboard_bind=dashboard_bind,
+            dashboard_port=_int_env("JOKER_DASHBOARD_PORT", 8080),
+            dashboard_token=dashboard_token,
         )
 
