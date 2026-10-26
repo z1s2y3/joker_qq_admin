@@ -9,6 +9,7 @@ DEFAULT_TOKEN_URL = "https://bots.qq.com/app/getAppAccessToken"
 DEFAULT_INTENTS = 1 << 25
 DEFAULT_REQUEST_TIMEOUT = 20.0
 DEFAULT_SCUM_RELAY_URL = "https://ba.yooyun.top"
+DEFAULT_ENV_FILE = "/etc/joker_qq_admin/joker_qq_admin.env"
 
 
 class ConfigError(ValueError):
@@ -17,6 +18,44 @@ class ConfigError(ValueError):
 
 def _env(name: str, default: str = "") -> str:
     return os.getenv(name, default).strip()
+
+
+def env_file_path() -> Path:
+    return Path(_env("JOKER_ENV_FILE", DEFAULT_ENV_FILE)).expanduser()
+
+
+def read_env_file(path: str | Path | None = None) -> dict[str, str]:
+    env_path = Path(path or env_file_path())
+    if not env_path.exists():
+        return {}
+    values: dict[str, str] = {}
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        name, value = line.split("=", 1)
+        name = name.strip()
+        value = value.strip()
+        if value[:1] == value[-1:] and value[:1] in {"'", '"'}:
+            value = value[1:-1]
+        values[name] = value
+    return values
+
+
+def write_env_file(updates: dict[str, str], path: str | Path | None = None) -> Path:
+    env_path = Path(path or env_file_path())
+    current = read_env_file(env_path)
+    current.update(updates)
+    env_path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [f"{name}={value}" for name, value in sorted(current.items())]
+    env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    os.chmod(env_path, 0o600)
+    return env_path
+
+
+def load_env_file(path: str | Path | None = None) -> None:
+    for name, value in read_env_file(path).items():
+        os.environ[name] = value
 
 
 def _float_env(name: str, default: float) -> float:
