@@ -26,9 +26,9 @@ if ($KeyPath) {
 }
 
 $target = "$UserName@$HostName"
-& ssh @sshOptions $target "mkdir -p '$RemotePackage'"
+& ssh @sshOptions $target "rm -rf '$RemotePackage' && mkdir -p '$RemotePackage'"
 
-$items = @("README.md", ".env.example", ".gitignore", "requirements.txt", "run.py", "api.py", "app.py", "config.py", "dashboard.py", "gateway.py", "storage.py", "webhook.py", "features", "deploy")
+$items = @("README.md", "CHANGELOG.md", ".env.example", ".gitignore", "requirements.txt", "run.py", "api.py", "app.py", "config.py", "dashboard.py", "dashboard_overlays.py", "dashboard_pages.py", "group_dashboard_page.py", "gateway.py", "storage.py", "webhook.py", "features", "deploy")
 foreach ($item in $items) {
     $source = Join-Path $root $item
     & scp @scpOptions -r $source "$target`:$RemotePackage/"

@@ -26,7 +26,12 @@ install -d -o "$SERVICE_USER" -g "$SERVICE_USER" "$APP_DIR" /etc/joker_qq_admin
 install -d -o "$SERVICE_USER" -g "$SERVICE_USER" /var/lib/joker_qq_admin
 # 只复制程序和部署配置，不复制旧数据、数据库、浏览器缓存或 Git 元数据。
 if [[ "$SOURCE_DIR" != "$APP_DIR" ]]; then
-  for item in README.md .env.example .gitignore requirements.txt run.py api.py app.py config.py dashboard.py gateway.py storage.py webhook.py features deploy; do
+  PROGRAM_ITEMS=(README.md CHANGELOG.md .env.example .gitignore requirements.txt run.py api.py app.py config.py dashboard.py dashboard_overlays.py dashboard_pages.py group_dashboard_page.py gateway.py storage.py webhook.py features deploy)
+  # 先替换整套程序文件，避免新旧文件混用导致缺少模块或保留已删除的测试代码。
+  for item in "${PROGRAM_ITEMS[@]}"; do
+    rm -rf "$APP_DIR/$item"
+  done
+  for item in "${PROGRAM_ITEMS[@]}"; do
     if [[ -d "$SOURCE_DIR/$item" ]]; then
       cp -R "$SOURCE_DIR/$item" "$APP_DIR/"
     else

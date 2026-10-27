@@ -4,11 +4,12 @@ from dataclasses import dataclass
 import os
 from pathlib import Path
 
-DEFAULT_API_BASE_URL = "https://api.sgroup.qq.com"
+DEFAULT_API_BASE_URL = "https://api.bot.qq.com"
 DEFAULT_TOKEN_URL = "https://bots.qq.com/app/getAppAccessToken"
 DEFAULT_INTENTS = 1 << 25
 DEFAULT_REQUEST_TIMEOUT = 20.0
 DEFAULT_SCUM_RELAY_URL = "https://ba.yooyun.top"
+DEFAULT_PORTAL_URL = "https://web.yooyun.top"
 DEFAULT_ENV_FILE = "/etc/joker_qq_admin/joker_qq_admin.env"
 
 
@@ -78,6 +79,15 @@ def _int_env(name: str, default: int) -> int:
         raise ConfigError(f"{name} must be an integer") from exc
 
 
+def _path_env(name: str, default: str) -> str:
+    value = _env(name, default) or default
+    if not value.startswith("/") or "?" in value or "#" in value:
+        raise ConfigError(f"{name} must be an absolute URL path")
+    if len(value) > 1:
+        value = "/" + value.strip("/")
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class QQBotConfig:
     app_id: str
@@ -94,11 +104,27 @@ class QQBotConfig:
     scum_relay_url: str = DEFAULT_SCUM_RELAY_URL
     scum_relay_key: str = ""
     owner_openid: str = ""
+    admin_openids: tuple[str, ...] = ()
     game_bridge_url: str = ""
     game_bridge_token: str = ""
+    portal_url: str = DEFAULT_PORTAL_URL
     dashboard_bind: str = "127.0.0.1"
     dashboard_port: int = 8080
     dashboard_token: str = ""
+    dashboard_path: str = "/admin"
+    admin_path: str = ""
+    user_path: str = "/user"
+    admin_username: str = "admin"
+    admin_password: str = ""
+    dashboard_session_max_age: int = 604800
+    bot_authorization_required: bool = True
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    smtp_use_tls: bool = True
+    registration_require_email: bool = True
 
     @classmethod
     def from_env(cls) -> "QQBotConfig":
@@ -114,16 +140,27 @@ class QQBotConfig:
 
         dashboard_bind = _env("JOKER_DASHBOARD_BIND", "127.0.0.1")
         dashboard_token = _env("JOKER_DASHBOARD_TOKEN")
+        legacy_dashboard_path = _path_env("JOKER_DASHBOARD_PATH", "/admin")
+        if legacy_dashboard_path == "/":
+            legacy_dashboard_path = "/admin"
+        admin_path = _path_env("JOKER_ADMIN_PATH", legacy_dashboard_path)
+        user_path = _path_env("JOKER_USER_PATH", "/user")
+        if admin_path == "/" or user_path == "/" or admin_path == user_path:
+            raise ConfigError("JOKER_ADMIN_PATH and JOKER_USER_PATH must be different non-root paths")
         transport = _env("QQBOT_TRANSPORT", "webhook").lower()
         if transport not in {"websocket", "webhook"}:
             raise ConfigError("QQBOT_TRANSPORT must be websocket or webhook")
         if dashboard_bind not in {"127.0.0.1", "localhost", "::1"} and not dashboard_token:
             raise ConfigError("JOKER_DASHBOARD_TOKEN is required when dashboard is not local-only")
 
+        api_base_url = _env("QQBOT_API_BASE", DEFAULT_API_BASE_URL).rstrip("/")
+        if api_base_url == "https://api.sgroup.qq.com":
+            api_base_url = DEFAULT_API_BASE_URL
+
         return cls(
             app_id=app_id,
             app_secret=app_secret,
-            api_base_url=_env("QQBOT_API_BASE", DEFAULT_API_BASE_URL).rstrip("/"),
+            api_base_url=api_base_url,
             token_url=_env("QQBOT_TOKEN_URL", DEFAULT_TOKEN_URL),
             gateway_url=_env("QQBOT_GATEWAY_URL"),
             transport=transport,
@@ -135,10 +172,30 @@ class QQBotConfig:
             scum_relay_url=_env("SCUM_RELAY_URL", DEFAULT_SCUM_RELAY_URL).rstrip("/"),
             scum_relay_key=_env("SCUM_RELAY_KEY"),
             owner_openid=_env("QQBOT_OWNER_OPENID"),
+            admin_openids=tuple(
+                item.strip()
+                for item in _env("QQBOT_ADMIN_OPENIDS").split(",")
+                if item.strip()
+            ),
             game_bridge_url=_env("JOKER_GAME_BRIDGE_URL").rstrip("/"),
             game_bridge_token=_env("JOKER_GAME_BRIDGE_TOKEN"),
+            portal_url=_env("JOKER_PORTAL_URL", DEFAULT_PORTAL_URL).rstrip("/"),
             dashboard_bind=dashboard_bind,
             dashboard_port=_int_env("JOKER_DASHBOARD_PORT", 8080),
             dashboard_token=dashboard_token,
+            dashboard_path=admin_path,
+            admin_path=admin_path,
+            user_path=user_path,
+            admin_username=_env("JOKER_ADMIN_USERNAME", "admin"),
+            admin_password=_env("JOKER_ADMIN_PASSWORD"),
+            dashboard_session_max_age=_int_env("JOKER_DASHBOARD_SESSION_MAX_AGE", 604800),
+            bot_authorization_required=_env("JOKER_BOT_AUTH_REQUIRED", "1") not in {"0", "false", "no"},
+            smtp_host=_env("JOKER_SMTP_HOST"),
+            smtp_port=_int_env("JOKER_SMTP_PORT", 587),
+            smtp_username=_env("JOKER_SMTP_USERNAME"),
+            smtp_password=_env("JOKER_SMTP_PASSWORD"),
+            smtp_from=_env("JOKER_SMTP_FROM"),
+            smtp_use_tls=_env("JOKER_SMTP_USE_TLS", "1") not in {"0", "false", "no"},
+            registration_require_email=_env("JOKER_REGISTRATION_REQUIRE_EMAIL", "1") not in {"0", "false", "no"},
         )
 
