@@ -63,7 +63,7 @@ class ScumQueryHandler:
             return None
         name, arguments, argument_text = parsed
         if name in {"scum帮助", "scum帮助".casefold()}:
-            return "绑定id 服务器ID\n解绑\n查询在线\n查询 关键词"
+            return "绑定id 服务器ID\n解绑\n查询（排名前10）\n查询在线\n查询 关键词"
         if name in {"绑定id", "id绑定", "绑定"}:
             if not arguments or not arguments[0].isdigit():
                 return "用法：绑定id 服务器ID"
