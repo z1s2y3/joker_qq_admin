@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | `basic_commands` | 已实现 | 基础指令、状态和功能菜单。 |
 | `identity` | 已实现 | 显示官方 openid，并可将 `group_openid` 映射到 Linux 网页使用的数字群号。 |
-| `scum_query` | 已实现 | `绑定id`、`解绑`、`查询在线`、`查询 关键词` 不需要斜杠，调用 Linux SCUM 中转。 |
+| `scum_query` | 已实现 | `绑定id`、`解绑`、`查询在线`、`查询 关键词` 不需要斜杠；单独 `查询` 返回排名前 10 个服务器，调用 Linux SCUM 中转。 |
 | `statistics` | 已实现 | 签到、积分、排行和群统计，数据保存在 Linux SQLite。 |
 | `auto_reply` | 已实现 | 添加、删除、查看和开关文字回复。 |
 | `lottery` | 已实现 | 发起、报名、开奖和状态查询。 |

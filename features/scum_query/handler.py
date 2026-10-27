@@ -82,8 +82,6 @@ class ScumQueryHandler:
                 return "本群还没有绑定服务器，请先使用 绑定id 服务器ID"
             return await self._detail(server_id)
         if name in {"查询", "查询1", "查询2", "id查询", "查服"}:
-            if not argument_text:
-                return "用法：查询 关键词"
             return await self._search(argument_text)
         return None
 
@@ -105,19 +103,38 @@ class ScumQueryHandler:
             return {"error": f"SCUM 查询失败：{type(exc).__name__}"}
 
     async def _search(self, keyword: str) -> str:
-        data = await self._request("/api/search", {"q": keyword[:120]})
+        keyword = keyword.strip()
+        top_rank = not keyword
+        params = {"q": "all" if top_rank else keyword[:120]}
+        if top_rank:
+            params["limit"] = "100"
+        data = await self._request("/api/search", params)
         if data.get("error"):
             return str(data["error"])
         servers = data.get("servers")
         if not isinstance(servers, list) or not servers:
-            return "没有找到匹配的服务器"
-        lines = [f"SCUM 查询“{keyword}”找到 {len(servers)} 个结果："]
-        for index, server in enumerate(servers[:10], 1):
-            if not isinstance(server, dict):
-                continue
+            return "没有找到可用的 SCUM 服务器"
+        valid_servers = [server for server in servers if isinstance(server, dict)]
+        if not valid_servers:
+            return "没有找到可用的 SCUM 服务器"
+        if top_rank:
+            valid_servers.sort(key=self._rank_value)
+            lines = ["SCUM 排名前 10 的服务器："]
+        else:
+            lines = [f"SCUM 查询“{keyword}”找到 {len(valid_servers)} 个结果："]
+        for index, server in enumerate(valid_servers[:10], 1):
             lines.append(self._format_server(server, index=index))
         lines.extend(["-----------------------------------------------", "使用 绑定id 服务器ID 绑定后，可用 查询在线。"])
         return "\n".join(lines)
+
+    @classmethod
+    def _rank_value(cls, server: dict[str, Any]) -> int:
+        raw_rank = cls._pick(server, "rank", "ranking", "position")
+        value = str(raw_rank or "").strip().lstrip("#").replace(",", "")
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return 10**9
 
     async def _detail(self, server_id: str) -> str:
         data = await self._request(f"/api/servers/{server_id}")
