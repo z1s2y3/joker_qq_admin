@@ -14,6 +14,19 @@ from config import QQBotConfig
 class QQBotAPIError(RuntimeError):
     """Raised when the official QQ bot API rejects a request."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        status: int | None = None,
+        code: str = "",
+        retry_after: float | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.status = status
+        self.code = code
+        self.retry_after = retry_after
+
 
 @dataclass(slots=True)
 class AccessToken:
@@ -22,13 +35,39 @@ class AccessToken:
 
 
 class QQBotAPI:
+    _RETRYABLE_STATUSES = {408, 425, 429, 500, 502, 503, 504}
+    _MAX_READ_ATTEMPTS = 3
+
     def __init__(self, config: QQBotConfig) -> None:
         self.config = config
         self._token: AccessToken | None = None
         self._token_lock = asyncio.Lock()
+        self._session: aiohttp.ClientSession | None = None
+        self._session_lock = asyncio.Lock()
 
     async def close(self) -> None:
-        return None
+        session = self._session
+        self._session = None
+        if session is not None and not session.closed:
+            await session.close()
+
+    async def _get_session(self) -> aiohttp.ClientSession:
+        session = self._session
+        if session is not None and not session.closed:
+            return session
+        async with self._session_lock:
+            session = self._session
+            if session is not None and not session.closed:
+                return session
+            timeout = aiohttp.ClientTimeout(total=self.config.request_timeout)
+            connector = aiohttp.TCPConnector(
+                limit=32,
+                limit_per_host=16,
+                ttl_dns_cache=300,
+                enable_cleanup_closed=True,
+            )
+            self._session = aiohttp.ClientSession(timeout=timeout, connector=connector)
+            return self._session
 
     async def access_token(self) -> str:
         now = time.time()
@@ -39,11 +78,10 @@ class QQBotAPI:
             now = time.time()
             if self._token and self._token.expires_at - now > 60:
                 return self._token.value
-            timeout = aiohttp.ClientTimeout(total=self.config.request_timeout)
             payload = {"appId": self.config.app_id, "clientSecret": self.config.app_secret}
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.post(self.config.token_url, json=payload) as response:
-                    data = await self._read_response(response)
+            session = await self._get_session()
+            async with session.post(self.config.token_url, json=payload) as response:
+                data = await self._read_response(response)
             token = str(data.get("access_token", "") or "").strip()
             if not token:
                 raise QQBotAPIError("official QQ bot token response has no access_token")
@@ -130,15 +168,20 @@ class QQBotAPI:
         except QQBotAPIError as bulk_error:
             if len(members) <= 1:
                 raise
-            success_openids: list[str] = []
-            failed_openids: list[str] = []
-            for member in members:
-                try:
-                    await self.request("POST", path, json={"members": [member]})
-                except QQBotAPIError:
-                    failed_openids.append(str(member["member_openid"]))
-                else:
-                    success_openids.append(str(member["member_openid"]))
+            semaphore = asyncio.Semaphore(4)
+
+            async def apply_single(member: dict[str, Any]) -> tuple[str, bool]:
+                member_openid = str(member["member_openid"])
+                async with semaphore:
+                    try:
+                        await self.request("POST", path, json={"members": [member]})
+                    except QQBotAPIError:
+                        return member_openid, False
+                    return member_openid, True
+
+            results = await asyncio.gather(*(apply_single(member) for member in members))
+            success_openids = [member_openid for member_openid, ok in results if ok]
+            failed_openids = [member_openid for member_openid, ok in results if not ok]
             if not success_openids:
                 raise bulk_error
             return {
@@ -362,19 +405,46 @@ class QQBotAPI:
         json: dict[str, Any] | None = None,
         params: dict[str, str] | None = None,
     ) -> dict[str, Any]:
-        token = await self.access_token()
-        timeout = aiohttp.ClientTimeout(total=self.config.request_timeout)
-        headers = {"Authorization": f"QQBot {token}"}
         url = f"{self.config.api_base_url}{path}"
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.request(
-                method,
-                url,
-                headers=headers,
-                json=json,
-                params=params,
-            ) as response:
-                return await self._read_response(response)
+        method = method.upper()
+        retry_safe = method in {"GET", "DELETE"}
+        max_attempts = self._MAX_READ_ATTEMPTS if retry_safe else 2
+        for attempt in range(max_attempts):
+            try:
+                token = await self.access_token()
+                headers = {"Authorization": f"QQBot {token}"}
+                session = await self._get_session()
+                async with session.request(
+                    method,
+                    url,
+                    headers=headers,
+                    json=json,
+                    params=params,
+                ) as response:
+                    return await self._read_response(response)
+            except QQBotAPIError as exc:
+                if exc.status == 401 and attempt == 0:
+                    async with self._token_lock:
+                        self._token = None
+                    continue
+                if not retry_safe or attempt >= max_attempts - 1:
+                    raise
+                if exc.status not in self._RETRYABLE_STATUSES:
+                    raise
+                await asyncio.sleep(self._retry_delay(exc, attempt))
+            except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
+                if not retry_safe or attempt >= max_attempts - 1:
+                    raise QQBotAPIError(
+                        f"official QQ bot request failed: {type(exc).__name__}"
+                    ) from exc
+                await asyncio.sleep(0.5 * (attempt + 1))
+        raise QQBotAPIError("official QQ bot request exhausted retries")
+
+    @staticmethod
+    def _retry_delay(error: QQBotAPIError, attempt: int) -> float:
+        if error.retry_after is not None:
+            return max(0.2, min(error.retry_after, 10.0))
+        return min(5.0, 0.5 * (attempt + 1))
 
     @staticmethod
     async def _read_response(response: aiohttp.ClientResponse) -> dict[str, Any]:
@@ -387,7 +457,19 @@ class QQBotAPI:
             code = data.get("code") or data.get("err_code") or data.get("retcode")
             detail = data.get("message") or data.get("msg") or data.get("raw") or response.reason
             suffix = f" ({code})" if code else ""
-            raise QQBotAPIError(f"HTTP {response.status}{suffix}: {detail}")
+            retry_after: float | None = None
+            raw_retry_after = response.headers.get("Retry-After", "")
+            if raw_retry_after:
+                try:
+                    retry_after = float(raw_retry_after)
+                except ValueError:
+                    retry_after = None
+            raise QQBotAPIError(
+                f"HTTP {response.status}{suffix}: {detail}",
+                status=response.status,
+                code=str(code or ""),
+                retry_after=retry_after,
+            )
         if not isinstance(data, dict):
             raise QQBotAPIError("official QQ bot API returned a non-object response")
         return data

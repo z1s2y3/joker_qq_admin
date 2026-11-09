@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import aiohttp
@@ -56,6 +57,37 @@ class ScumQueryHandler:
         self.relay_url = relay_url.rstrip("/")
         self.relay_key = relay_key.strip()
         self.timeout = timeout
+        self._session: aiohttp.ClientSession | None = None
+        self._session_lock = asyncio.Lock()
+
+    async def close(self) -> None:
+        session = self._session
+        self._session = None
+        if session is not None and not session.closed:
+            await session.close()
+
+    async def _get_session(self) -> aiohttp.ClientSession:
+        session = self._session
+        if session is not None and not session.closed:
+            return session
+        async with self._session_lock:
+            session = self._session
+            if session is not None and not session.closed:
+                return session
+            self._session = aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=self.timeout),
+                connector=aiohttp.TCPConnector(
+                    limit=8,
+                    limit_per_host=4,
+                    ttl_dns_cache=300,
+                    enable_cleanup_closed=True,
+                ),
+                headers={
+                    "Accept": "application/json",
+                    "User-Agent": "Joker-QQ-Official-Bot/1.1",
+                },
+            )
+            return self._session
 
     async def handle(self, context: MessageContext) -> str | None:
         parsed = parse_scum_command(context.content)
@@ -88,19 +120,45 @@ class ScumQueryHandler:
     async def _request(self, path: str, params: dict[str, str] | None = None) -> dict:
         if not self.relay_url:
             return {"error": "未配置 SCUM_RELAY_URL"}
-        headers = {"Accept": "application/json"}
-        if self.relay_key:
-            headers["Authorization"] = f"Bearer {self.relay_key}"
-        timeout = aiohttp.ClientTimeout(total=self.timeout)
-        try:
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.get(f"{self.relay_url}{path}", params=params, headers=headers) as response:
-                    data = await response.json(content_type=None)
+        if not self.relay_key:
+            return {"error": "SCUM 中转密钥未配置，请联系管理员检查 Linux 配置。"}
+        headers = {"Authorization": f"Bearer {self.relay_key}"}
+        retryable_statuses = {408, 425, 429, 500, 502, 503, 504}
+        session = await self._get_session()
+        for attempt in range(3):
+            try:
+                async with session.get(
+                    f"{self.relay_url}{path}", params=params, headers=headers
+                ) as response:
+                    raw = await response.text()
+                    try:
+                        data = await response.json(content_type=None)
+                    except (TypeError, ValueError):
+                        data = {}
                     if response.status >= 400:
-                        return {"error": str(data.get("error") or data.get("detail") or f"HTTP {response.status}")}
+                        detail = (
+                            data.get("error")
+                            or data.get("detail")
+                            or raw[:160]
+                            or f"HTTP {response.status}"
+                        )
+                        if response.status == 401:
+                            return {"error": "SCUM 中转密钥无效，请检查 Linux 中转服务与机器人配置是否一致。"}
+                        if response.status in retryable_statuses and attempt < 2:
+                            retry_after = response.headers.get("Retry-After", "")
+                            try:
+                                delay = min(8.0, max(0.3, float(retry_after)))
+                            except ValueError:
+                                delay = 0.6 * (attempt + 1)
+                            await asyncio.sleep(delay)
+                            continue
+                        return {"error": f"SCUM 查询失败：{str(detail)[:180]}"}
                     return data if isinstance(data, dict) else {"error": "中转返回格式无效"}
-        except (aiohttp.ClientError, TimeoutError) as exc:
-            return {"error": f"SCUM 查询失败：{type(exc).__name__}"}
+            except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
+                if attempt >= 2:
+                    return {"error": f"SCUM 查询失败：{type(exc).__name__}"}
+                await asyncio.sleep(0.6 * (attempt + 1))
+        return {"error": "SCUM 查询失败：重试次数已用完"}
 
     async def _search(self, keyword: str) -> str:
         keyword = keyword.strip()

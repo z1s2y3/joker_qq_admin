@@ -230,7 +230,13 @@ class CommandRouter:
             or candidate == self.store.get_bot_owner_openid()
         )
 
-    def close(self) -> None:
+    async def close(self) -> None:
+        for handler in self.handlers:
+            close = getattr(handler, "close", None)
+            if close is not None:
+                result = close()
+                if hasattr(result, "__await__"):
+                    await result
         self.store.close()
 
 
@@ -257,7 +263,7 @@ class OfficialQQBotApp:
             scheduled_task.cancel()
             await asyncio.gather(scheduled_task, return_exceptions=True)
             await self.dashboard.stop()
-            self.router.close()
+            await self.router.close()
             await self.api.close()
 
     async def _scheduled_message_loop(self) -> None:
